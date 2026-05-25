@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, request, send_file, jsonify, redirect, url_for
+from flask import Flask, request, send_file, jsonify, redirect, url_for, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
     LoginManager, UserMixin, login_user,
@@ -30,6 +30,7 @@ class User(UserMixin, db.Model):
     email    = db.Column(db.String(200), unique=True, nullable=False)
     password     = db.Column(db.String(500), nullable=False)
     catalog_path = db.Column(db.String(500), nullable=True)
+    catalog_data = db.Column(db.Text, nullable=True)
 
 
 class Product(db.Model):
@@ -268,12 +269,13 @@ def index():
             else:
                 uploaded_df = pd.read_excel(file)
 
-            # SAVE CATALOG FILE FOR AUTO-RELOAD
+            # SAVE CATALOG TO DATABASE FOR PERSISTENCE
             catalog_dir = 'catalogs'
             os.makedirs(catalog_dir, exist_ok=True)
             catalog_path = os.path.join(catalog_dir, f'catalog_{current_user.id}.csv')
             uploaded_df.to_csv(catalog_path, index=False)
             current_user.catalog_path = catalog_path
+            current_user.catalog_data = uploaded_df.to_csv(index=False)
             db.session.commit()
 
             uploaded_df.columns = uploaded_df.columns.str.strip().str.lower()
@@ -312,8 +314,17 @@ def index():
 
     # AUTO-LOAD CATALOG IF NO PRODUCTS
     if not Product.query.filter_by(user_id=current_user.id).first():
+        # Try file first, fall back to DB stored CSV
+        auto_csv = None
         if current_user.catalog_path and os.path.exists(current_user.catalog_path):
-            auto_df = pd.read_csv(current_user.catalog_path)
+            auto_csv = current_user.catalog_path
+        elif current_user.catalog_data:
+            import io as _io
+            auto_df = pd.read_csv(_io.StringIO(current_user.catalog_data))
+            auto_csv = "from_db"
+        if auto_csv:
+            if auto_csv != "from_db":
+                auto_df = pd.read_csv(auto_csv)
             auto_df.columns = auto_df.columns.str.strip().str.lower()
             _title_col    = find_column(auto_df, ['product title', 'title', 'name']) or auto_df.columns[0]
             _desc_col     = find_column(auto_df, ['description', 'details']) or _title_col
@@ -785,19 +796,26 @@ def optimize_product():
 
 # EXPORT ROUTES
 @app.route('/export/<platform>')
+@login_required
 def export_platform(platform):
-    global uploaded_df
-    if uploaded_df.empty:
-        return "No catalog uploaded"
+    products = Product.query.filter_by(user_id=current_user.id).all()
+    if not products:
+        return "No catalog found"
 
-    df = uploaded_df.copy()
-    df.columns = df.columns.str.strip().str.lower()
+    df = pd.DataFrame([{
+        "title":       p.title,
+        "description": p.description,
+        "price":       p.price,
+        "image":       p.image,
+        "category":    p.category,
+        "stock":       p.stock
+    } for p in products])
 
-    title_col    = find_column(df, ['title', 'name', 'product'])
-    desc_col     = find_column(df, ['description', 'details'])
-    image_col    = find_column(df, ['image', 'photo'])
-    price_col    = find_column(df, ['price'])
-    category_col = find_column(df, ['category'])
+    title_col    = "title"
+    desc_col     = "description"
+    image_col    = "image"
+    price_col    = "price"
+    category_col = "category" 
 
     if platform == "daraz":
         export_df = pd.DataFrame({
@@ -847,10 +865,12 @@ def export_platform(platform):
     else:
         return "Invalid platform"
 
-    output = io.BytesIO()
-    export_df.to_csv(output, index=False)
-    output.seek(0)
-    return send_file(output, mimetype='text/csv', as_attachment=True, download_name=f"{platform}_export.csv")
+    csv_data = export_df.to_csv(index=False)
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={platform}_export.csv"}
+    )
 
 
 @app.route('/health')

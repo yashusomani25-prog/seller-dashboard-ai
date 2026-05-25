@@ -853,6 +853,11 @@ def export_platform(platform):
     return send_file(output, mimetype='text/csv', as_attachment=True, download_name=f"{platform}_export.csv")
 
 
+@app.route('/health')
+def health():
+    return 'OK', 200
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

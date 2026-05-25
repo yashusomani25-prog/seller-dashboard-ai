@@ -1,0 +1,11 @@
+print("1. Importing selenium...")
+from selenium import webdriver
+print("2. Selenium imported ✓")
+print("3. Starting Chrome...")
+driver = webdriver.Chrome()
+print("4. Chrome started ✓")
+driver.get("https://google.com")
+print("5. Google loaded ✓")
+input("Chrome open - press Enter...")
+driver.quit()
+print("6. Chrome closed ✓")

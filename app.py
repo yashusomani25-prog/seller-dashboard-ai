@@ -15,7 +15,9 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecretkey123'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///seller_dashboard.db'
+basedir = os.path.abspath(os.path.dirname(__file__))
+os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'seller_dashboard.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -878,7 +880,35 @@ def health():
     return 'OK', 200
 
 
+# AUTO MIGRATION ON STARTUP
+def migrate_db():
+    with db.engine.connect() as conn:
+        from sqlalchemy import text
+        # Drop and recreate tables if schema is outdated
+        try:
+            # Check if user_id column exists
+            conn.execute(text("SELECT user_id FROM product LIMIT 1"))
+        except:
+            # Column missing - drop and recreate all tables
+            conn.execute(text("DROP TABLE IF EXISTS product"))
+            conn.execute(text("DROP TABLE IF EXISTS user"))
+            conn.commit()
+        migrations = [
+            "ALTER TABLE product ADD COLUMN user_id INTEGER",
+            "ALTER TABLE product ADD COLUMN stock INTEGER",
+            "ALTER TABLE user ADD COLUMN catalog_path VARCHAR(500)",
+            "ALTER TABLE user ADD COLUMN catalog_data TEXT",
+        ]
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except:
+                pass
+
+with app.app_context():
+    db.create_all()
+    migrate_db()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run()

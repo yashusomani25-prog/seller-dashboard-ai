@@ -1,0 +1,10 @@
+<h1>Welcome, {{ user.username }}!</h1>
+<p><a href="/logout">Logout</a></p>
+<h2>Your Products</h2>
+<ul>
+{% for product in products %}
+    <li>{{ product.title }} - Rs. {{ product.price }}</li>
+{% else %}
+    <li>No products yet.</li>
+{% endfor %}
+</ul>

@@ -885,21 +885,44 @@ def health():
 
 def create_tables():
     with app.app_context():
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.engine)
+        
+        # Get existing columns
+        try:
+            user_cols = [c['name'] for c in inspector.get_columns('user')]
+        except:
+            user_cols = []
+        try:
+            product_cols = [c['name'] for c in inspector.get_columns('product')]
+        except:
+            product_cols = []
+
+        # Create all tables first
         db.create_all()
-        # Add missing columns if they don't exist
-        from sqlalchemy import text
+
+        # Add missing columns
         with db.engine.connect() as conn:
-            for sql in [
-                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS catalog_path VARCHAR(500)',
-                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS catalog_data TEXT',
-                'ALTER TABLE product ADD COLUMN IF NOT EXISTS user_id INTEGER',
-                'ALTER TABLE product ADD COLUMN IF NOT EXISTS stock INTEGER',
-            ]:
+            if 'catalog_path' not in user_cols:
                 try:
-                    conn.execute(text(sql))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN catalog_path VARCHAR(500)'))
                     conn.commit()
-                except:
-                    pass
+                except: pass
+            if 'catalog_data' not in user_cols:
+                try:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN catalog_data TEXT'))
+                    conn.commit()
+                except: pass
+            if 'user_id' not in product_cols:
+                try:
+                    conn.execute(text('ALTER TABLE product ADD COLUMN user_id INTEGER'))
+                    conn.commit()
+                except: pass
+            if 'stock' not in product_cols:
+                try:
+                    conn.execute(text('ALTER TABLE product ADD COLUMN stock INTEGER'))
+                    conn.commit()
+                except: pass
 
 create_tables()
 

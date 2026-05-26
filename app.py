@@ -880,35 +880,8 @@ def health():
     return 'OK', 200
 
 
-# AUTO MIGRATION ON STARTUP
-def migrate_db():
-    with db.engine.connect() as conn:
-        from sqlalchemy import text
-        # Drop and recreate tables if schema is outdated
-        try:
-            # Check if user_id column exists
-            conn.execute(text("SELECT user_id FROM product LIMIT 1"))
-        except:
-            # Column missing - drop and recreate all tables
-            conn.execute(text("DROP TABLE IF EXISTS product"))
-            conn.execute(text("DROP TABLE IF EXISTS user"))
-            conn.commit()
-        migrations = [
-            "ALTER TABLE product ADD COLUMN user_id INTEGER",
-            "ALTER TABLE product ADD COLUMN stock INTEGER",
-            "ALTER TABLE user ADD COLUMN catalog_path VARCHAR(500)",
-            "ALTER TABLE user ADD COLUMN catalog_data TEXT",
-        ]
-        for sql in migrations:
-            try:
-                conn.execute(text(sql))
-                conn.commit()
-            except:
-                pass
-
 with app.app_context():
     db.create_all()
-    migrate_db()
 
 if __name__ == '__main__':
     app.run()

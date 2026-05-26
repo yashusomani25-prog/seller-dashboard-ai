@@ -2,6 +2,7 @@ import pandas as pd
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import time #
 
 CSV_PATH = r"c:\projects\private_mailer\subscribers.csv"
 
@@ -47,7 +48,8 @@ def run_smtp_pipeline():
 
             server.sendmail(msg["From"], email_recipient, msg.as_string())
             print(f"  Email package transmitted cleanly to: {email_recipient}")
-
+            time.sleep(11) #
+ 
         server.quit()
         print("\n✓ All email packages dispatched over the network loop!")
 

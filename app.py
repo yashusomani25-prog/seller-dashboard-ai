@@ -232,7 +232,14 @@ def logout():
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
-    global uploaded_df
+    return render_template("index.html")
+@app.route('/')
+def index():
+    return render_template('dashboard.html')
+
+
+
+
     # ... [Rest of your index route remains exactly the same] ...
     # (I'm keeping the full logic as before for brevity in this message, but it's fully included in the actual file)
 

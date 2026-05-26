@@ -17,7 +17,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecretkey123'
 basedir = os.path.abspath(os.path.dirname(__file__))
 os.makedirs(os.path.join(basedir, 'instance'), exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'instance', 'seller_dashboard.db'))
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'instance', 'seller_dashboard.db'))
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -880,8 +883,25 @@ def health():
     return 'OK', 200
 
 
-with app.app_context():
-    db.create_all()
+def create_tables():
+    with app.app_context():
+        db.create_all()
+        # Add missing columns if they don't exist
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            for sql in [
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS catalog_path VARCHAR(500)',
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS catalog_data TEXT',
+                'ALTER TABLE product ADD COLUMN IF NOT EXISTS user_id INTEGER',
+                'ALTER TABLE product ADD COLUMN IF NOT EXISTS stock INTEGER',
+            ]:
+                try:
+                    conn.execute(text(sql))
+                    conn.commit()
+                except:
+                    pass
+
+create_tables()
 
 if __name__ == '__main__':
     app.run()

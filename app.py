@@ -12,6 +12,7 @@ import json
 import random
 import string
 import os
+import re
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecretkey123'
@@ -24,6 +25,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
+app.jinja_env.globals.update(process_image_url=process_image_url)
 login_manager.init_app(app)
 login_manager.login_view = "login" 
 uploaded_df = pd.DataFrame()
@@ -55,25 +57,63 @@ def load_user(user_id):
 
 
 # =========================================================
-# GOOGLE DRIVE IMAGE FIXER
+# UNIVERSAL IMAGE URL PROCESSOR
 # =========================================================
-def fix_google_drive_link(image):
-    image = str(image).strip()
-    if not image or image.lower() == "nan":
+def process_image_url(url):
+    if not url:
         return "https://placehold.co/600x400?text=No+Image"
-    if "drive.google.com" in image:
+
+    url = str(url).strip()
+
+    if not url or url.lower() in ["nan", "none", ""]:
+        return "https://placehold.co/600x400?text=No+Image"
+
+    # Google Drive
+    if "drive.google.com" in url:
         try:
-            if "/d/" in image:
-                file_id = image.split("/d/")[1].split("/")[0]
-            elif "id=" in image:
-                file_id = image.split("id=")[1].split("&")[0]
-            else:
-                file_id = ""
-            if file_id:
+            match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+            if match:
+                file_id = match.group(1)
+                return f"https://lh3.googleusercontent.com/d/{file_id}=s1200"
+            if "id=" in url:
+                file_id = url.split("id=")[1].split("&")[0]
                 return f"https://lh3.googleusercontent.com/d/{file_id}=s1200"
         except:
             return "https://placehold.co/600x400?text=Broken+Image"
-    return image
+
+    # Dropbox - convert to direct link
+    if "dropbox.com" in url:
+        return url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("?dl=0", "?raw=1")
+
+    # OneDrive - convert to direct link
+    if "1drv.ms" in url or "onedrive.live.com" in url:
+        return url
+
+    # Daraz / Lazada CDN
+    if "daraz" in url or "lazada" in url or "alicdn" in url:
+        return url
+
+    # Amazon product images
+    if "amazon.com" in url or "amazonaws.com" in url or "ssl-images-amazon" in url:
+        return url
+
+    # Shopify CDN
+    if "shopify.com" in url or "cdn.shopify" in url:
+        return url
+
+    # Direct image extensions
+    if any(ext in url.lower() for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"]):
+        return url
+
+    # Any valid http/https URL - try to use it directly
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+
+    return "https://placehold.co/600x400?text=No+Image"
+
+# Keep old name as alias for backward compatibility
+def fix_google_drive_link(url):
+    return process_image_url(url)
 
 
 # =========================================================

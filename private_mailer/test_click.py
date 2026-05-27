@@ -1,16 +1,20 @@
 import requests
 
-# Clean string structure with explicit target parameters
-target_url = "http://127.0.0"
-payload_params = {
-    "url": "https://google.com",
-    "email": "ram@test.local"
+# Forcing localhost to clear any hidden Windows network path routing bugs
+gateway_url = "http://localhost:8080/api/v1/send"
+
+payload = {
+    "client_id": "nepal_wallet_01",
+    "secret_key": "key_secret_777",
+    "email": "ram@test.local",
+    "name": "Ram Bahadur",
+    "code": "API_NODE_SUCCESS_99"
 }
 
 try:
-    print("Dispatching payload over to Flask network module...")
-    response = requests.get(target_url, params=payload_params, allow_redirects=False)
-    print(f"Network Handshake Status Code: {response.status_code}")
-    print("Success! Now check your tracker.py terminal window.")
+    print("Corporate app hitting your Private Mailer API via localhost...")
+    response = requests.post(gateway_url, json=payload)
+    print(f"API Server Response Status: {response.status_code}")
+    print(f"API Body Print: {response.json()}")
 except Exception as e:
-    print(f"Connection failure. Make sure tracker.py is running. Error details: {e}")
+    print(f"Failed to connect to gateway architecture. Details: {e}")

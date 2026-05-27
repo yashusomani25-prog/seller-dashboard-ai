@@ -25,6 +25,30 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
+import re
+
+def process_image_url(url):
+if not url:
+return ""
+
+```
+url = url.strip()
+
+if "drive.google.com" in url:
+    match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
+
+if "daraz" in url or "lazada" in url:
+    return url
+
+if any(ext in url.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+    return url
+
+return url
+```
+
 app.jinja_env.globals.update(process_image_url=process_image_url)
 login_manager.init_app(app)
 login_manager.login_view = "login" 

@@ -25,59 +25,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
-import re
-
-def process_image_url(url):
-if not url:
-return ""
-
-```
-url = url.strip()
-
-if "drive.google.com" in url:
-    match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
-    if match:
-        file_id = match.group(1)
-        return f"https://drive.google.com/uc?export=view&id={file_id}"
-
-if "daraz" in url or "lazada" in url:
-    return url
-
-if any(ext in url.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-    return url
-
-return url
-```
-
-app.jinja_env.globals.update(process_image_url=process_image_url)
-login_manager.init_app(app)
-login_manager.login_view = "login" 
-uploaded_df = pd.DataFrame()
-
-
-class User(UserMixin, db.Model):
-    id       = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    email    = db.Column(db.String(200), unique=True, nullable=False)
-    password     = db.Column(db.String(500), nullable=False)
-    catalog_path = db.Column(db.String(500), nullable=True)
-    catalog_data = db.Column(db.Text, nullable=True)
-
-
-class Product(db.Model):
-    id          = db.Column(db.Integer, primary_key=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey('user.id'))
-    title       = db.Column(db.String(500))
-    description = db.Column(db.Text)
-    category    = db.Column(db.String(200))
-    image       = db.Column(db.Text)
-    price       = db.Column(db.Float)
-    stock       = db.Column(db.Integer)
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
 
 # =========================================================
@@ -109,7 +56,7 @@ def process_image_url(url):
     if "dropbox.com" in url:
         return url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("?dl=0", "?raw=1")
 
-    # OneDrive - convert to direct link
+    # OneDrive
     if "1drv.ms" in url or "onedrive.live.com" in url:
         return url
 
@@ -129,15 +76,47 @@ def process_image_url(url):
     if any(ext in url.lower() for ext in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"]):
         return url
 
-    # Any valid http/https URL - try to use it directly
+    # Any valid http/https URL
     if url.startswith("http://") or url.startswith("https://"):
         return url
 
     return "https://placehold.co/600x400?text=No+Image"
 
+
 # Keep old name as alias for backward compatibility
 def fix_google_drive_link(url):
     return process_image_url(url)
+
+
+app.jinja_env.globals.update(process_image_url=process_image_url)
+login_manager.init_app(app)
+login_manager.login_view = "login"
+uploaded_df = pd.DataFrame()
+
+
+class User(UserMixin, db.Model):
+    id           = db.Column(db.Integer, primary_key=True)
+    username     = db.Column(db.String(100), unique=True, nullable=False)
+    email        = db.Column(db.String(200), unique=True, nullable=False)
+    password     = db.Column(db.String(500), nullable=False)
+    catalog_path = db.Column(db.String(500), nullable=True)
+    catalog_data = db.Column(db.Text, nullable=True)
+
+
+class Product(db.Model):
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id'))
+    title       = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    category    = db.Column(db.String(200))
+    image       = db.Column(db.Text)
+    price       = db.Column(db.Float)
+    stock       = db.Column(db.Integer)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 
 # =========================================================
@@ -163,7 +142,7 @@ def generate_sku(title):
 
 
 def generate_tags(title, category):
-    title_words = str(title).lower().split()
+    title_words    = str(title).lower().split()
     category_words = str(category).lower().split()
     tags = list(set(title_words + category_words))
     return ', '.join(tags[:8])
@@ -171,9 +150,9 @@ def generate_tags(title, category):
 
 # ====================== AI OPTIMIZER ======================
 def ai_optimize_product(title, description, category=""):
-    title = str(title).replace("nan", "").strip()
+    title       = str(title).replace("nan", "").strip()
     description = str(description).replace("nan", "").strip()
-    category = str(category).replace("nan", "").strip()
+    category    = str(category).replace("nan", "").strip()
 
     optimized_title = f"Premium {title} | Best {category} Product in Nepal"
 
@@ -186,34 +165,29 @@ def ai_optimize_product(title, description, category=""):
     ]
 
     seo_keywords = [word.lower() for word in title.split() if len(word) > 3]
-    seo_tags = ", ".join(seo_keywords[:10])
+    seo_tags     = ", ".join(seo_keywords[:10])
 
-    optimized_description = f"""
-{title}
-
-{description}
-
-Why choose this product?
-• Premium quality materials
-• Reliable performance
-• Affordable pricing
-• Fast nationwide delivery
-
-Perfect for customers looking for quality {category} products in Nepal.
-
-SEO Tags: {seo_tags}
-"""
+    optimized_description = (
+        f"{title}\n\n{description}\n\n"
+        "Why choose this product?\n"
+        "• Premium quality materials\n"
+        "• Reliable performance\n"
+        "• Affordable pricing\n"
+        "• Fast nationwide delivery\n\n"
+        f"Perfect for customers looking for quality {category} products in Nepal.\n\n"
+        f"SEO Tags: {seo_tags}"
+    )
 
     return {
-        "optimized_title": optimized_title,
-        "bullet_points": bullet_points,
+        "optimized_title":       optimized_title,
+        "bullet_points":         bullet_points,
         "optimized_description": optimized_description,
-        "seo_tags": seo_tags
+        "seo_tags":              seo_tags
     }
 
 
 # =========================================================
-# HOME ROUTE
+# AUTH ROUTES
 # =========================================================
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -235,10 +209,9 @@ def register():
         <button type="submit">Register</button>
         <br><br><a href="/login">Already have an account? Login</a>
     </form>
-    """ 
+    """
 
 
-# HARDCODED DEV CREDENTIALS
 DEV_EMAIL    = "admin@seller.com"
 DEV_PASSWORD = "admin123"
 
@@ -248,7 +221,6 @@ def login():
         email    = request.form['email']
         password = request.form['password']
 
-        # Auto-create dev user if not exists
         if email == DEV_EMAIL and password == DEV_PASSWORD:
             user = User.query.filter_by(email=DEV_EMAIL).first()
             if not user:
@@ -269,7 +241,7 @@ def login():
         <input name="password" type="password" placeholder="Password"><br><br>
         <button type="submit">Login</button>
     </form>
-    """ 
+    """
 
 
 @app.route('/delete/<int:product_id>')
@@ -314,21 +286,24 @@ def logout():
     return redirect('/login')
 
 
+# =========================================================
+# MAIN DASHBOARD
+# =========================================================
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
     global uploaded_df
-    cards = ""
-    total_products = 0
-    duplicate_products = 0
-    missing_images = 0
-    avg_price = 0
-    category_labels = []
-    category_counts = []
-    total_inventory_value = 0
-    low_stock_count = 0
+    cards                  = ""
+    total_products         = 0
+    duplicate_products     = 0
+    missing_images         = 0
+    avg_price              = 0
+    category_labels        = []
+    category_counts        = []
+    total_inventory_value  = 0
+    low_stock_count        = 0
     total_potential_profit = 0
-    category_options = ""
+    category_options       = ""
 
     if request.method == 'POST':
         file = request.files.get('file')
@@ -338,8 +313,7 @@ def index():
             else:
                 uploaded_df = pd.read_excel(file)
 
-            # SAVE CATALOG TO DATABASE FOR PERSISTENCE
-            catalog_dir = 'catalogs'
+            catalog_dir  = 'catalogs'
             os.makedirs(catalog_dir, exist_ok=True)
             catalog_path = os.path.join(catalog_dir, f'catalog_{current_user.id}.csv')
             uploaded_df.to_csv(catalog_path, index=False)
@@ -354,9 +328,8 @@ def index():
             image_col    = find_column(uploaded_df, ['image', 'photo', 'img']) or title_col
             price_col    = find_column(uploaded_df, ['price', 'sale price']) or title_col
             category_col = find_column(uploaded_df, ['category', 'type']) or title_col
-
-            # SAVE PRODUCTS INTO DATABASE
             stock_col_upload = find_column(uploaded_df, ['availability', 'stock', 'quantity', 'qty', 'inventory'])
+
             for _, row in uploaded_df.iterrows():
                 title       = str(row.get(title_col, 'Untitled')).replace("nan", "").strip() or 'Untitled'
                 description = str(row.get(desc_col, '')).replace("nan", "").strip()
@@ -383,13 +356,12 @@ def index():
 
     # AUTO-LOAD CATALOG IF NO PRODUCTS
     if not Product.query.filter_by(user_id=current_user.id).first():
-        # Try file first, fall back to DB stored CSV
         auto_csv = None
+        auto_df  = None
         if current_user.catalog_path and os.path.exists(current_user.catalog_path):
             auto_csv = current_user.catalog_path
         elif current_user.catalog_data:
-            import io as _io
-            auto_df = pd.read_csv(_io.StringIO(current_user.catalog_data))
+            auto_df  = pd.read_csv(io.StringIO(current_user.catalog_data))
             auto_csv = "from_db"
         if auto_csv:
             if auto_csv != "from_db":
@@ -424,17 +396,15 @@ def index():
     products = Product.query.filter_by(user_id=current_user.id).all()
 
     if products:
-        data = []
-        for product in products:
-            data.append({
-                "id":          product.id,
-                "title":       product.title,
-                "description": product.description,
-                "category":    product.category,
-                "image":       product.image,
-                "price":       product.price,
-                "stock":       product.stock
-            })
+        data = [{
+            "id":          p.id,
+            "title":       p.title,
+            "description": p.description,
+            "category":    p.category,
+            "image":       p.image,
+            "price":       p.price,
+            "stock":       p.stock
+        } for p in products]
         df = pd.DataFrame(data)
         df.columns = df.columns.str.strip().str.lower()
 
@@ -444,15 +414,14 @@ def index():
         price_col    = "price"
         category_col = "category"
         link_col     = None
-        stock_col    = "stock" 
+        stock_col    = "stock"
 
-        # Search, Sort, Filter
         search = request.args.get('search', '').lower()
         if search:
             df = df[df[title_col].astype(str).str.lower().str.contains(search)]
 
-        sort_option = request.args.get('sort', '')
-        df[price_col] = pd.to_numeric(df[price_col], errors='coerce')
+        sort_option      = request.args.get('sort', '')
+        df[price_col]    = pd.to_numeric(df[price_col], errors='coerce')
 
         if sort_option == 'low':
             df = df.sort_values(by=price_col, ascending=True)
@@ -484,35 +453,31 @@ def index():
 
         for i, (_, row) in enumerate(df.iterrows()):
             is_duplicate = df.duplicated(subset=[title_col], keep=False).iloc[i]
-            title = str(row.get(title_col, 'Untitled Product')).replace("nan", "").strip()
-            if not title:
-                title = "Untitled Product"
-
+            title = str(row.get(title_col, 'Untitled Product')).replace("nan", "").strip() or "Untitled Product"
             description = str(row.get(desc_col, 'No description')).strip()
-
             category = str(row.get(category_col, 'General')).replace("nan", "").strip()
             if not category or category.lower() in ['google_product_category', 'category', 'type']:
                 category = "General"
 
-            image = fix_google_drive_link(row.get(image_col, ''))
+            image         = fix_google_drive_link(row.get(image_col, ''))
             image_warning = ""
-            image_class = ""
+            image_class   = ""
             if "placehold.co" in image or not image or image == "nan":
                 image_warning = "<div class='image-warning'>⚠ Missing Image</div>"
-                image_class = "bad-image"
+                image_class   = "bad-image"
             elif not (image.startswith("http://") or image.startswith("https://")):
                 image_warning = "<div class='image-warning'>⚠ Invalid Image URL</div>"
-                image_class = "bad-image" 
+                image_class   = "bad-image"
 
             try:
                 raw_price = str(row.get(price_col, 0)).replace(",", "").strip()
-                price = 0 if raw_price.lower() == "nan" else float(raw_price)
+                price     = 0 if raw_price.lower() == "nan" else float(raw_price)
             except:
                 price = 0
 
-            updated_price   = round(price * (1 + bulk_percent / 100), 2)
-            cost_price      = round(price * 0.7, 2)
-            profit          = round(updated_price - cost_price, 2)
+            updated_price = round(price * (1 + bulk_percent / 100), 2)
+            cost_price    = round(price * 0.7, 2)
+            profit        = round(updated_price - cost_price, 2)
 
             try:
                 stock = int(float(str(row.get(stock_col, 0)).replace(',', '').strip())) if stock_col else 0
@@ -540,7 +505,7 @@ def index():
             daraz_btn  = f'<a href="{daraz_link}" target="_blank"><button class="daraz-btn">🛒 View on Daraz</button></a>' if daraz_link and daraz_link.lower() != 'nan' else ''
 
             cards += f"""
-            <div class="card {'duplicate-card' if is_duplicate else ''}" data-index="{i}" 
+            <div class="card {'duplicate-card' if is_duplicate else ''}" data-index="{i}"
                 data-title="{title.replace('"', '&quot;')}"
                 data-image="{image}"
                 data-category="{category}"
@@ -627,8 +592,6 @@ def index():
             .duplicate-badge {{ position: absolute; top: 50px; left: 12px; background: #ef4444; color: white; padding: 6px 12px; border-radius: 30px; font-size: 12px; font-weight: bold; z-index: 10; }}
             .image-warning {{ position: absolute; top: 60px; right: 15px; background: #ea580c; color: white; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: bold; z-index: 5; }}
             .bad-image {{ border-bottom: 4px solid #ea580c; }}
-
-            /* MODAL */
             .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto; padding: 40px 20px; box-sizing: border-box; }}
             .modal-overlay.active {{ display: block; }}
             .modal-box {{ background: white; border-radius: 24px; max-width: 860px; width: 100%; overflow: visible; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; margin: 0 auto 40px auto; }}
@@ -650,7 +613,6 @@ def index():
             .modal-ai-box {{ background: linear-gradient(135deg, #f3e8ff, #fce7f3); border-radius: 12px; padding: 16px; margin-top: 16px; }}
             .modal-ai-box p {{ font-size: 14px; color: #555; margin: 6px 0; line-height: 1.6; }}
             .modal-close {{ position: absolute; top: 16px; right: 20px; font-size: 22px; cursor: pointer; color: #333; background: white; border: none; border-radius: 50%; width: 38px; height: 38px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; }}
-            .modal-header-wrap {{ position: relative; }}
         </style>
     </head>
     <body>
@@ -713,7 +675,7 @@ def index():
             <div class="modal-box">
                 <div class="modal-header-wrap">
                     <img id="modal-image" src="" class="modal-image" onerror="this.src='https://placehold.co/860x420/f1f1f1/888?text=No+Image';">
-                    <button class="modal-close" onclick="closeModal()">✕</button>
+                    <button class="modal-close" onclick="closeModal()">&#x2715;</button>
                 </div>
                 <div class="modal-body">
                     <div class="modal-badges">
@@ -729,14 +691,14 @@ def index():
                         <div class="modal-stat"><div class="modal-stat-number" id="modal-inventory"></div><div class="modal-stat-label">Inventory Value</div></div>
                         <div class="modal-stat"><div class="modal-stat-number" id="modal-tag-count"></div><div class="modal-stat-label">Tags</div></div>
                     </div>
-                    <div class="modal-section-title">📝 Full Description</div>
+                    <div class="modal-section-title">&#x1F4DD; Full Description</div>
                     <div class="modal-description" id="modal-desc"></div>
-                    <div class="modal-section-title">🏷️ Tags</div>
+                    <div class="modal-section-title">&#x1F3F7;&#xFE0F; Tags</div>
                     <div class="modal-description" id="modal-tags"></div>
-                    <div class="modal-section-title">✨ AI Insights</div>
+                    <div class="modal-section-title">&#x2728; AI Insights</div>
                     <div class="modal-ai-box" id="modal-ai-box">
                         <p>Click below to generate AI insights for this product.</p>
-                        <button class="ai-btn" id="modal-ai-btn" style="margin-top:10px;">✨ Generate AI Insights</button>
+                        <button class="ai-btn" id="modal-ai-btn" style="margin-top:10px;">&#x2728; Generate AI Insights</button>
                     </div>
                 </div>
             </div>
@@ -758,25 +720,29 @@ def index():
 
             async function optimizeProduct(index) {{
                 const card = document.querySelectorAll('.card')[index];
-                const btn = card.querySelector('.ai-btn');
+                const btn  = card.querySelector('.ai-btn');
                 const oldText = btn.innerHTML;
-                btn.innerHTML = "⏳ Optimizing...";
-                btn.disabled = true;
+                btn.innerHTML = "&#x23F3; Optimizing...";
+                btn.disabled  = true;
                 try {{
-                    const res = await fetch('/optimize', {{
+                    const res  = await fetch('/optimize', {{
                         method: 'POST',
                         headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify({{title: "test", description: "test"}})
+                        body: JSON.stringify({{
+                            title:       card.dataset.title,
+                            description: card.dataset.desc,
+                            category:    card.dataset.category
+                        }})
                     }});
                     const data = await res.json();
-                    card.querySelector('.title').innerHTML = "✦ " + data.optimized_title;
+                    card.querySelector('.title').innerHTML       = "&#x2726; " + data.optimized_title;
                     card.querySelector('.description').innerHTML = data.optimized_description;
-                    alert("✅ AI Listing Optimized!");
+                    alert("&#x2705; AI Listing Optimized!");
                 }} catch(e) {{
                     alert("AI Error");
                 }} finally {{
                     btn.innerHTML = oldText;
-                    btn.disabled = false;
+                    btn.disabled  = false;
                 }}
             }}
 
@@ -784,10 +750,10 @@ def index():
                 const card = document.querySelectorAll('.card')[index];
                 if (!card) return;
                 const d = card.dataset;
-                document.getElementById('modal-image').src     = d.image;
+                document.getElementById('modal-image').src          = d.image;
                 document.getElementById('modal-title').innerText    = d.title;
                 document.getElementById('modal-category').innerText = d.category;
-                document.getElementById('modal-sku').innerText      = '🏷 ' + d.sku;
+                document.getElementById('modal-sku').innerText      = d.sku;
                 document.getElementById('modal-price').innerText    = d.price;
                 document.getElementById('modal-updated').innerText  = d.updated;
                 document.getElementById('modal-stock').innerText    = d.stock;
@@ -796,7 +762,9 @@ def index():
                 document.getElementById('modal-desc').innerText     = d.desc;
                 document.getElementById('modal-tags').innerText     = d.tags;
                 document.getElementById('modal-tag-count').innerText= d.tags.split(',').length + ' tags';
-                document.getElementById('modal-ai-box').innerHTML   = '<p>Click below to generate AI insights for this product.</p><button class="ai-btn" onclick="optimizeModalProduct()" style="margin-top:10px;">✨ Generate AI Insights</button>';
+                document.getElementById('modal-ai-box').innerHTML   =
+                    '<p>Click below to generate AI insights for this product.</p>' +
+                    '<button class="ai-btn" onclick="optimizeModalProduct()" style="margin-top:10px;">&#x2728; Generate AI Insights</button>';
                 document.getElementById('productModal').classList.add('active');
                 document.body.style.overflow = 'hidden';
             }}
@@ -817,7 +785,7 @@ def index():
             async function optimizeModalProduct() {{
                 const title = document.getElementById('modal-title').innerText;
                 const box   = document.getElementById('modal-ai-box');
-                box.innerHTML = '<p>⏳ Generating AI insights...</p>';
+                box.innerHTML = '<p>&#x23F3; Generating AI insights...</p>';
                 try {{
                     const res  = await fetch('/optimize', {{
                         method: 'POST',
@@ -825,11 +793,12 @@ def index():
                         body: JSON.stringify({{title: title, description: ''}})
                     }});
                     const data = await res.json();
-                    box.innerHTML = '<p><b>✦ Optimized Title:</b> ' + data.optimized_title + '</p>' +
-                                    '<p><b>📌 Key Points:</b> ' + data.bullet_points.join(' · ') + '</p>' +
-                                    '<p><b>📝 Description:</b> ' + data.optimized_description + '</p>';
+                    box.innerHTML =
+                        '<p><b>&#x2726; Optimized Title:</b> '    + data.optimized_title + '</p>' +
+                        '<p><b>&#x1F4CC; Key Points:</b> '        + data.bullet_points.join(' &middot; ') + '</p>' +
+                        '<p><b>&#x1F4DD; Description:</b> '       + data.optimized_description + '</p>';
                 }} catch(e) {{
-                    box.innerHTML = '<p>❌ AI Error. Try again.</p>';
+                    box.innerHTML = '<p>&#x274C; AI Error. Try again.</p>';
                 }}
             }}
 
@@ -841,12 +810,12 @@ def index():
                         labels: {category_labels_json},
                         datasets: [{{
                             label: 'Products',
-                            data: {category_counts_json},
+                            data:  {category_counts_json},
                             borderWidth: 1
                         }}]
                     }},
                     options: {{
-                        layout: {{ padding: 20 }},
+                        layout:  {{ padding: 20 }},
                         plugins: {{ legend: {{ position: 'bottom' }} }}
                     }}
                 }});
@@ -857,13 +826,21 @@ def index():
     """
 
 
-# AI Route
+# =========================================================
+# AI OPTIMIZE ROUTE
+# =========================================================
 @app.route('/optimize', methods=['POST'])
 def optimize_product():
-    return jsonify(ai_optimize_product("", ""))
+    data        = request.get_json() or {}
+    title       = data.get('title', '')
+    description = data.get('description', '')
+    category    = data.get('category', '')
+    return jsonify(ai_optimize_product(title, description, category))
 
 
+# =========================================================
 # EXPORT ROUTES
+# =========================================================
 @app.route('/export/<platform>')
 @login_required
 def export_platform(platform):
@@ -880,56 +857,50 @@ def export_platform(platform):
         "stock":       p.stock
     } for p in products])
 
-    title_col    = "title"
-    desc_col     = "description"
-    image_col    = "image"
-    price_col    = "price"
-    category_col = "category" 
-
     if platform == "daraz":
         export_df = pd.DataFrame({
-            "Product Name": df[title_col],
-            "Description":  df[desc_col],
-            "Price":        df[price_col],
-            "Main Images":  df[image_col],
-            "Category":     df[category_col]
+            "Product Name": df["title"],
+            "Description":  df["description"],
+            "Price":        df["price"],
+            "Main Images":  df["image"],
+            "Category":     df["category"]
         })
     elif platform == "shopify":
         export_df = pd.DataFrame({
-            "Title":        df[title_col],
-            "Body (HTML)":  df[desc_col],
-            "Variant Price":df[price_col],
-            "Image Src":    df[image_col],
-            "Type":         df[category_col]
+            "Title":         df["title"],
+            "Body (HTML)":   df["description"],
+            "Variant Price": df["price"],
+            "Image Src":     df["image"],
+            "Type":          df["category"]
         })
     elif platform == "facebook":
         export_df = pd.DataFrame({
-            "title":        df[title_col],
-            "description":  df[desc_col],
+            "title":        df["title"],
+            "description":  df["description"],
             "availability": "in stock",
             "condition":    "new",
-            "price":        df[price_col].astype(str) + " NPR",
-            "image_link":   df[image_col]
+            "price":        df["price"].astype(str) + " NPR",
+            "image_link":   df["image"]
         })
     elif platform == "instagram":
         export_df = pd.DataFrame({
-            "id":                    range(1, len(df)+1),
-            "title":                 df[title_col],
-            "description":           df[desc_col],
-            "availability":          "in stock",
-            "condition":             "new",
-            "price":                 df[price_col].astype(str) + " NPR",
-            "image_link":            df[image_col],
-            "brand":                 "MyBrand",
-            "google_product_category": df[category_col]
+            "id":                      range(1, len(df) + 1),
+            "title":                   df["title"],
+            "description":             df["description"],
+            "availability":            "in stock",
+            "condition":               "new",
+            "price":                   df["price"].astype(str) + " NPR",
+            "image_link":              df["image"],
+            "brand":                   "MyBrand",
+            "google_product_category": df["category"]
         })
     elif platform == "tiktok":
         export_df = pd.DataFrame({
-            "Product Name":        df[title_col],
-            "Product Description": df[desc_col],
-            "Price":               df[price_col],
-            "Main Image":          df[image_col],
-            "Category":            df[category_col]
+            "Product Name":        df["title"],
+            "Product Description": df["description"],
+            "Price":               df["price"],
+            "Main Image":          df["image"],
+            "Category":            df["category"]
         })
     else:
         return "Invalid platform"
@@ -947,6 +918,9 @@ def health():
     return 'OK', 200
 
 
+# =========================================================
+# DB INIT
+# =========================================================
 def create_tables():
     with app.app_context():
         from sqlalchemy import text
@@ -968,6 +942,7 @@ def create_tables():
                     conn.commit()
                 except:
                     pass
+
 
 create_tables()
 

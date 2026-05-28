@@ -549,6 +549,7 @@ def index():
     return f"""
     <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Seller Automation Dashboard</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
@@ -613,6 +614,66 @@ def index():
             .modal-ai-box {{ background: linear-gradient(135deg, #f3e8ff, #fce7f3); border-radius: 12px; padding: 16px; margin-top: 16px; }}
             .modal-ai-box p {{ font-size: 14px; color: #555; margin: 6px 0; line-height: 1.6; }}
             .modal-close {{ position: absolute; top: 16px; right: 20px; font-size: 22px; cursor: pointer; color: #333; background: white; border: none; border-radius: 50%; width: 38px; height: 38px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; }}
+
+            /* ===================== MOBILE RESPONSIVE ===================== */
+            * {{ box-sizing: border-box; }}
+
+            @media (max-width: 768px) {{
+                h1 {{ font-size: 24px !important; }}
+                h3 {{ font-size: 15px; margin: 6px 0; }}
+
+                .header {{ padding: 16px; }}
+
+                .controls {{
+                    flex-direction: column;
+                    gap: 10px;
+                }}
+                .controls input,
+                .controls select,
+                .controls button,
+                .controls a {{ width: 100% !important; }}
+                .controls a button {{ width: 100% !important; }}
+
+                .stats {{
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 12px;
+                    padding: 12px;
+                }}
+                .stat-card {{ padding: 16px; }}
+                .stat-number {{ font-size: 24px; }}
+
+                .products {{
+                    grid-template-columns: 1fr;
+                    gap: 16px;
+                    padding: 12px;
+                }}
+
+                .product-image {{ height: 220px; }}
+
+                .card-body {{ padding: 14px; }}
+                .title {{ font-size: 18px; }}
+                .description {{ font-size: 14px; }}
+
+                .chart-box {{ margin: 10px; padding: 12px; }}
+
+                /* Modal mobile */
+                .modal-overlay {{ padding: 10px; }}
+                .modal-box {{ border-radius: 16px; }}
+                .modal-image {{ height: 200px; }}
+                .modal-body {{ padding: 16px; }}
+                .modal-title {{ font-size: 18px; }}
+                .modal-stats {{
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 10px;
+                }}
+                .modal-stat-number {{ font-size: 16px; }}
+            }}
+
+            @media (max-width: 400px) {{
+                .stats {{ grid-template-columns: 1fr; }}
+                .modal-stats {{ grid-template-columns: 1fr; }}
+                h1 {{ font-size: 20px !important; }}
+            }}
         </style>
     </head>
     <body>

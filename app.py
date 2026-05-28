@@ -34,7 +34,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db           = SQLAlchemy(app)
 mail         = Mail(app)
 login_manager = LoginManager()
-app.jinja_env.globals.update(process_image_url=process_image_url)
 login_manager.init_app(app)
 login_manager.login_view = "login" 
 uploaded_df = pd.DataFrame()
@@ -128,6 +127,8 @@ def process_image_url(url):
 # Keep old name as alias for backward compatibility
 def fix_google_drive_link(url):
     return process_image_url(url)
+
+app.jinja_env.globals.update(process_image_url=process_image_url)
 
 
 # =========================================================

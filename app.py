@@ -537,8 +537,8 @@ def index():
                     <button class="ai-btn" onclick="optimizeProduct({i})">✨ AI Optimize Listing</button>
                     {daraz_btn}
                     <button class="view-btn" onclick="openModal({i})">👁 View Product</button>
-                    <a href="/edit/{row['id']}"><button class="blue" style="width:100%;margin-top:5px;">✏️ Edit</button></a>
-                    <a href="/delete/{row['id']}"><button class="orange" style="width:100%;margin-top:5px;">🗑️ Delete</button></a>
+                    <a href="/edit/{row['id']}" style="display:block;margin-top:5px;"><button class="blue" style="width:100%;padding:11px;border-radius:10px;font-size:13px;">✏️ Edit</button></a>
+                    <a href="/delete/{row['id']}" style="display:block;margin-top:5px;"><button class="orange" style="width:100%;padding:11px;border-radius:10px;font-size:13px;">🗑️ Delete</button></a>
                 </div>
             </div>
             """
@@ -552,127 +552,284 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Seller Automation Dashboard</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: Arial; background: #f4f4f4; margin: 0; padding: 0; }}
-            .dark {{ background: #0f172a; color: white; }}
-            .header {{ background: white; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-            h1 {{ margin: 0; font-size: 42px; }}
-            .controls {{ display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap; }}
-            input, select {{ padding: 14px; border-radius: 10px; border: 1px solid #ccc; min-width: 220px; }}
-            button {{ padding: 14px 24px; border: none; border-radius: 10px; color: white; cursor: pointer; transition: 0.2s ease; }}
-            button:hover {{ opacity: 0.9; transform: scale(1.03); }}
-            .blue {{ background: #2563eb; }}
-            .green {{ background: #15803d; }}
-            .orange {{ background: #ea580c; }}
-            .pink {{ background: #db2777; }}
-            .ai-btn {{ background: linear-gradient(135deg, #8b5cf6, #ec4899); width:100%; margin:10px 0; font-weight:bold; }}
-            .daraz-btn {{ background: #f85606; width:100%; margin:5px 0; font-weight:bold; }}
-            .view-btn {{ width: 100%; margin-top: 12px; background: #111827; color: white; padding: 14px; border-radius: 12px; font-weight: bold; transition: 0.2s; }}
-            .view-btn:hover {{ background: #2563eb; }}
-            .stats {{ display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 22px; padding: 25px; }}
-            .stat-card {{ background: white; padding: 28px; border-radius: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); transition: 0.25s; }}
-            .stat-card:hover {{ transform: translateY(-4px); }}
-            .stat-number {{ font-size: 35px; font-weight: bold; color: #2563eb; }}
-            .products {{ display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 25px; padding: 20px; }}
-            .card {{ background: white; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 25px rgba(0,0,0,0.08); position: relative; transition: 0.3s ease; border: 1px solid #f0f0f0; }}
-            .card:hover {{ transform: translateY(-6px); box-shadow: 0 12px 24px rgba(0,0,0,0.15); }}
-            .category-badge {{ position: absolute; top: 14px; left: 14px; background: #2563eb; color: white; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: bold; z-index: 5; }}
-            .product-image {{ width: 100%; height: 320px; object-fit: cover; background: #f7f7f7; }}
-            .charts-container {{ padding: 20px; }}
-            .chart-box {{ background: white; padding: 20px; border-radius: 18px; margin: 20px auto; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 700px; }}
-            #categoryChart {{ max-height: 400px; }}
-            .card-body {{ padding: 22px; }}
-            .title {{ font-size: 24px; line-height: 1.4; margin-bottom: 14px; font-weight: 700; color: #111827; }}
-            .description {{ font-size: 15px; color: #4b5563; line-height: 1.7; margin-top: 10px; }}
-            .price-section {{ background: #f8fafc; padding: 14px; border-radius: 14px; margin: 15px 0; }}
-            .old-price {{ color: #6b7280; margin-bottom: 6px; }}
-            .new-price {{ color: #16a34a; font-size: 24px; font-weight: bold; }}
-            .low-stock {{ color: #dc2626; font-weight: bold; }}
-            .in-stock  {{ color: #16a34a; font-weight: bold; }}
-            .duplicate-card {{ border: 4px solid #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.4); }}
-            .duplicate-badge {{ position: absolute; top: 50px; left: 12px; background: #ef4444; color: white; padding: 6px 12px; border-radius: 30px; font-size: 12px; font-weight: bold; z-index: 10; }}
-            .image-warning {{ position: absolute; top: 60px; right: 15px; background: #ea580c; color: white; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: bold; z-index: 5; }}
-            .bad-image {{ border-bottom: 4px solid #ea580c; }}
-            .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto; padding: 40px 20px; box-sizing: border-box; }}
-            .modal-overlay.active {{ display: block; }}
-            .modal-box {{ background: white; border-radius: 24px; max-width: 860px; width: 100%; overflow: visible; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; margin: 0 auto 40px auto; }}
-            @keyframes slideUp {{ from {{ transform: translateY(40px); opacity: 0; }} to {{ transform: translateY(0); opacity: 1; }} }}
-            .modal-image {{ width: 100%; height: 300px; object-fit: contain; background: #f8fafc; display: block; }}
-            .modal-header-wrap {{ position: relative; overflow: hidden; border-radius: 24px 24px 0 0; }}
-            .modal-body {{ padding: 30px; }}
-            .modal-title {{ font-size: 24px; font-weight: bold; margin: 0 0 16px; line-height: 1.4; }}
-            .modal-badges {{ display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }}
-            .modal-badge {{ padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }}
-            .badge-blue {{ background: #dbeafe; color: #1d4ed8; }}
-            .badge-green {{ background: #dcfce7; color: #15803d; }}
-            .modal-stats {{ display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 20px 0; }}
-            .modal-stat {{ background: #f8fafc; border-radius: 12px; padding: 14px; text-align: center; }}
-            .modal-stat-number {{ font-size: 20px; font-weight: bold; color: #2563eb; }}
-            .modal-stat-label {{ font-size: 12px; color: #888; margin-top: 4px; }}
-            .modal-section-title {{ font-size: 15px; font-weight: bold; color: #333; margin: 20px 0 8px; }}
-            .modal-description {{ font-size: 14px; color: #555; line-height: 1.7; background: #f8fafc; padding: 16px; border-radius: 12px; }}
-            .modal-ai-box {{ background: linear-gradient(135deg, #f3e8ff, #fce7f3); border-radius: 12px; padding: 16px; margin-top: 16px; }}
-            .modal-ai-box p {{ font-size: 14px; color: #555; margin: 6px 0; line-height: 1.6; }}
-            .modal-close {{ position: absolute; top: 16px; right: 20px; font-size: 22px; cursor: pointer; color: #333; background: white; border: none; border-radius: 50%; width: 38px; height: 38px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; }}
+            /* ===================== RESET & BASE ===================== */
+            * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            body {{ font-family: 'Inter', Arial, sans-serif; background: #f0f2f8; color: #1e293b; }}
 
-            /* ===================== MOBILE RESPONSIVE ===================== */
-            * {{ box-sizing: border-box; }}
+            /* ===================== DARK MODE ===================== */
+            .dark {{ background: #0a0f1e !important; color: #e2e8f0 !important; }}
+            .dark .header {{ background: linear-gradient(135deg, #1e1b4b, #312e81) !important; }}
+            .dark .stat-card {{ background: #1e293b !important; color: #e2e8f0 !important; }}
+            .dark .card {{ background: #1e293b !important; color: #e2e8f0 !important; }}
+            .dark .chart-box {{ background: #1e293b !important; }}
+            .dark .modal-box {{ background: #1e293b !important; color: #e2e8f0 !important; }}
+            .dark input, .dark select {{ background: #1e293b; color: #e2e8f0; border-color: #334155; }}
+            .dark .title {{ color: #f1f5f9 !important; }}
+            .dark .price-section {{ background: #0f172a !important; }}
+            .dark .modal-stat {{ background: #0f172a !important; }}
+            .dark .modal-description {{ background: #0f172a !important; color: #cbd5e1 !important; }}
 
-            @media (max-width: 768px) {{
-                h1 {{ font-size: 24px !important; }}
-                h3 {{ font-size: 15px; margin: 6px 0; }}
-
-                .header {{ padding: 16px; }}
-
-                .controls {{
-                    flex-direction: column;
-                    gap: 10px;
-                }}
-                .controls input,
-                .controls select,
-                .controls button,
-                .controls a {{ width: 100% !important; }}
-                .controls a button {{ width: 100% !important; }}
-
-                .stats {{
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 12px;
-                    padding: 12px;
-                }}
-                .stat-card {{ padding: 16px; }}
-                .stat-number {{ font-size: 24px; }}
-
-                .products {{
-                    grid-template-columns: 1fr;
-                    gap: 16px;
-                    padding: 12px;
-                }}
-
-                .product-image {{ height: 220px; }}
-
-                .card-body {{ padding: 14px; }}
-                .title {{ font-size: 18px; }}
-                .description {{ font-size: 14px; }}
-
-                .chart-box {{ margin: 10px; padding: 12px; }}
-
-                /* Modal mobile */
-                .modal-overlay {{ padding: 10px; }}
-                .modal-box {{ border-radius: 16px; }}
-                .modal-image {{ height: 200px; }}
-                .modal-body {{ padding: 16px; }}
-                .modal-title {{ font-size: 18px; }}
-                .modal-stats {{
-                    grid-template-columns: repeat(2, 1fr);
-                    gap: 10px;
-                }}
-                .modal-stat-number {{ font-size: 16px; }}
+            /* ===================== HEADER ===================== */
+            .header {{
+                background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+                padding: 28px 32px;
+                box-shadow: 0 4px 24px rgba(29,78,216,0.3);
+            }}
+            .header h1 {{
+                margin: 0;
+                font-size: 32px;
+                font-weight: 800;
+                color: white;
+                letter-spacing: -0.5px;
+            }}
+            .header h3 {{
+                color: rgba(255,255,255,0.75);
+                font-weight: 400;
+                font-size: 14px;
+                margin-top: 4px;
             }}
 
+            /* ===================== CONTROLS ===================== */
+            .controls {{ display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center; }}
+            input, select {{
+                padding: 11px 16px;
+                border-radius: 10px;
+                border: 1.5px solid rgba(255,255,255,0.25);
+                background: rgba(255,255,255,0.15);
+                color: white;
+                font-size: 14px;
+                font-family: 'Inter', sans-serif;
+                min-width: 180px;
+                backdrop-filter: blur(4px);
+            }}
+            input::placeholder {{ color: rgba(255,255,255,0.6); }}
+            select option {{ background: #1e293b; color: white; }}
+            button {{
+                padding: 11px 20px;
+                border: none;
+                border-radius: 10px;
+                color: white;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 600;
+                font-family: 'Inter', sans-serif;
+                transition: all 0.2s ease;
+                white-space: nowrap;
+            }}
+            button:hover {{ opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }}
+            .blue   {{ background: rgba(255,255,255,0.2); backdrop-filter: blur(4px); border: 1.5px solid rgba(255,255,255,0.3); }}
+            .green  {{ background: #059669; }}
+            .orange {{ background: #ea580c; }}
+            .pink   {{ background: #db2777; }}
+
+            /* ===================== STATS ===================== */
+            .stats {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 18px;
+                padding: 28px 32px;
+            }}
+            .stat-card {{
+                background: white;
+                padding: 24px;
+                border-radius: 16px;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+                border: 1px solid #e2e8f0;
+                transition: all 0.25s ease;
+                position: relative;
+                overflow: hidden;
+            }}
+            .stat-card::before {{
+                content: '';
+                position: absolute;
+                top: 0; left: 0; right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #1d4ed8, #7c3aed);
+                border-radius: 16px 16px 0 0;
+            }}
+            .stat-card:hover {{ transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }}
+            .stat-number {{ font-size: 28px; font-weight: 800; color: #1d4ed8; line-height: 1.2; }}
+            .stat-card p {{ color: #64748b; font-size: 13px; margin-top: 6px; font-weight: 500; }}
+
+            /* ===================== CHARTS ===================== */
+            .charts-container {{ padding: 0 32px 20px; }}
+            .chart-box {{
+                background: white;
+                padding: 24px;
+                border-radius: 16px;
+                margin: 0 auto;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+                border: 1px solid #e2e8f0;
+                max-width: 600px;
+            }}
+            #categoryChart {{ max-height: 360px; }}
+
+            /* ===================== PRODUCT CARDS ===================== */
+            .products {{
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 22px;
+                padding: 8px 32px 40px;
+            }}
+            .card {{
+                background: white;
+                border-radius: 18px;
+                overflow: hidden;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+                border: 1px solid #e2e8f0;
+                position: relative;
+                transition: all 0.3s ease;
+            }}
+            .card:hover {{ transform: translateY(-5px); box-shadow: 0 12px 32px rgba(0,0,0,0.12); }}
+            .product-image {{ width: 100%; height: 260px; object-fit: cover; background: #f8fafc; }}
+            .card-body {{ padding: 20px; }}
+
+            .category-badge {{
+                position: absolute; top: 12px; left: 12px;
+                background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+                color: white; padding: 5px 12px;
+                border-radius: 999px; font-size: 11px;
+                font-weight: 700; z-index: 5;
+                letter-spacing: 0.3px;
+                text-transform: uppercase;
+            }}
+            .title {{
+                font-size: 16px; font-weight: 700;
+                color: #0f172a; line-height: 1.4;
+                margin-bottom: 10px;
+            }}
+            .description {{ font-size: 13px; color: #64748b; line-height: 1.6; margin-top: 8px; }}
+
+            .price-section {{
+                background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+                padding: 12px 14px; border-radius: 12px; margin: 12px 0;
+                border: 1px solid #dbeafe;
+            }}
+            .old-price {{ color: #94a3b8; font-size: 12px; margin-bottom: 2px; }}
+            .new-price {{ color: #059669; font-size: 20px; font-weight: 800; }}
+
+            .low-stock {{ color: #dc2626; font-weight: 600; font-size: 13px; }}
+            .in-stock  {{ color: #059669; font-weight: 600; font-size: 13px; }}
+
+            .duplicate-card {{ border: 2px solid #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }}
+            .duplicate-badge {{
+                position: absolute; top: 44px; left: 12px;
+                background: #ef4444; color: white;
+                padding: 4px 10px; border-radius: 999px;
+                font-size: 10px; font-weight: 700; z-index: 10;
+                text-transform: uppercase;
+            }}
+            .image-warning {{
+                position: absolute; top: 12px; right: 12px;
+                background: #ea580c; color: white;
+                padding: 5px 10px; border-radius: 8px;
+                font-size: 11px; font-weight: 700; z-index: 5;
+            }}
+            .bad-image {{ border-bottom: 3px solid #ea580c; }}
+
+            /* ===================== BUTTONS IN CARD ===================== */
+            .ai-btn {{
+                background: linear-gradient(135deg, #7c3aed, #db2777);
+                width: 100%; margin: 10px 0 6px;
+                font-weight: 700; font-size: 13px;
+                padding: 12px; border-radius: 10px;
+                letter-spacing: 0.2px;
+            }}
+            .daraz-btn {{
+                background: linear-gradient(135deg, #f85606, #f59e0b);
+                width: 100%; margin: 4px 0;
+                font-weight: 700; font-size: 13px;
+                padding: 11px; border-radius: 10px;
+            }}
+            .view-btn {{
+                width: 100%; margin-top: 6px;
+                background: #0f172a; color: white;
+                padding: 12px; border-radius: 10px;
+                font-weight: 600; font-size: 13px;
+                transition: all 0.2s;
+            }}
+            .view-btn:hover {{ background: #1d4ed8; }}
+            .card-body .blue  {{ background: #1d4ed8; width: 100%; margin-top: 5px; padding: 11px; border-radius: 10px; font-size: 13px; }}
+            .card-body .orange {{ background: #ea580c; width: 100%; margin-top: 5px; padding: 11px; border-radius: 10px; font-size: 13px; }}
+
+            /* ===================== MODAL ===================== */
+            .modal-overlay {{
+                display: none; position: fixed;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.65);
+                backdrop-filter: blur(4px);
+                z-index: 1000; overflow-y: auto;
+                padding: 40px 20px; box-sizing: border-box;
+            }}
+            .modal-overlay.active {{ display: block; }}
+            .modal-box {{
+                background: white; border-radius: 20px;
+                max-width: 820px; width: 100%;
+                box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+                animation: slideUp 0.3s cubic-bezier(.16,1,.3,1);
+                margin: 0 auto 40px auto; overflow: hidden;
+            }}
+            @keyframes slideUp {{ from {{ transform: translateY(50px); opacity: 0; }} to {{ transform: translateY(0); opacity: 1; }} }}
+            .modal-image {{ width: 100%; height: 280px; object-fit: contain; background: #f8fafc; display: block; }}
+            .modal-header-wrap {{ position: relative; border-bottom: 1px solid #f1f5f9; }}
+            .modal-body {{ padding: 28px; }}
+            .modal-title {{ font-size: 22px; font-weight: 800; margin: 0 0 14px; color: #0f172a; line-height: 1.3; }}
+            .modal-badges {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }}
+            .modal-badge {{ padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }}
+            .badge-blue  {{ background: #dbeafe; color: #1d4ed8; }}
+            .badge-green {{ background: #dcfce7; color: #059669; }}
+            .modal-stats {{
+                display: grid; grid-template-columns: repeat(3, 1fr);
+                gap: 12px; margin: 18px 0;
+            }}
+            .modal-stat {{
+                background: #f8fafc; border-radius: 12px;
+                padding: 14px; text-align: center;
+                border: 1px solid #e2e8f0;
+            }}
+            .modal-stat-number {{ font-size: 18px; font-weight: 800; color: #1d4ed8; }}
+            .modal-stat-label  {{ font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }}
+            .modal-section-title {{ font-size: 13px; font-weight: 700; color: #64748b; margin: 18px 0 8px; text-transform: uppercase; letter-spacing: 0.6px; }}
+            .modal-description {{ font-size: 14px; color: #475569; line-height: 1.7; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; }}
+            .modal-ai-box {{
+                background: linear-gradient(135deg, #f3e8ff, #fce7f3);
+                border-radius: 12px; padding: 16px; margin-top: 14px;
+                border: 1px solid #e9d5ff;
+            }}
+            .modal-ai-box p {{ font-size: 14px; color: #6b21a8; margin: 5px 0; line-height: 1.6; }}
+            .modal-close {{
+                position: absolute; top: 14px; right: 14px;
+                font-size: 18px; cursor: pointer;
+                background: white; border: 1px solid #e2e8f0;
+                border-radius: 50%; width: 34px; height: 34px;
+                color: #64748b; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                z-index: 10; transition: all 0.2s;
+                display: flex; align-items: center; justify-content: center;
+            }}
+            .modal-close:hover {{ background: #fee2e2; color: #dc2626; border-color: #fecaca; }}
+
+            /* ===================== MOBILE RESPONSIVE ===================== */
+            @media (max-width: 768px) {{
+                .header {{ padding: 20px 16px; }}
+                .header h1 {{ font-size: 22px; }}
+                .controls {{ gap: 8px; }}
+                .controls input, .controls select,
+                .controls button, .controls a {{ width: 100% !important; }}
+                .controls a button {{ width: 100% !important; }}
+                .stats {{ grid-template-columns: repeat(2,1fr); gap: 12px; padding: 16px; }}
+                .charts-container {{ padding: 0 16px 16px; }}
+                .products {{ grid-template-columns: 1fr; gap: 16px; padding: 8px 16px 32px; }}
+                .product-image {{ height: 200px; }}
+                .modal-stats {{ grid-template-columns: repeat(2,1fr); }}
+                .modal-body {{ padding: 18px; }}
+                .modal-image {{ height: 200px; }}
+            }}
             @media (max-width: 400px) {{
                 .stats {{ grid-template-columns: 1fr; }}
                 .modal-stats {{ grid-template-columns: 1fr; }}
-                h1 {{ font-size: 20px !important; }}
+                .header h1 {{ font-size: 18px; }}
             }}
         </style>
     </head>

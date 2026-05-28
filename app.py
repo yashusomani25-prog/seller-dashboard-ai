@@ -191,24 +191,97 @@ def ai_optimize_product(title, description, category=""):
 # =========================================================
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    error = ""
     if request.method == 'POST':
         username = request.form['username']
         email    = request.form['email']
         password = generate_password_hash(request.form['password'])
         if User.query.filter_by(email=email).first():
-            return "User already exists"
-        db.session.add(User(username=username, email=email, password=password))
-        db.session.commit()
-        return redirect('/login')
-    return """
-    <h1>Register</h1>
-    <form method="POST">
-        <input name="username" placeholder="Username"><br><br>
-        <input name="email" placeholder="Email"><br><br>
-        <input name="password" type="password" placeholder="Password"><br><br>
-        <button type="submit">Register</button>
-        <br><br><a href="/login">Already have an account? Login</a>
-    </form>
+            error = "User already exists"
+        else:
+            db.session.add(User(username=username, email=email, password=password))
+            db.session.commit()
+            return redirect('/login')
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Register — Seller AI</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+            * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            body {{
+                font-family: 'Inter', sans-serif;
+                background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #db2777 100%);
+                min-height: 100vh;
+                display: flex; align-items: center; justify-content: center;
+                padding: 20px;
+            }}
+            .card {{
+                background: white; border-radius: 24px;
+                padding: 40px 36px; width: 100%; max-width: 420px;
+                box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+                animation: slideUp 0.5s cubic-bezier(.16,1,.3,1);
+            }}
+            @keyframes slideUp {{ from {{ opacity:0; transform:translateY(30px); }} to {{ opacity:1; transform:translateY(0); }} }}
+            .logo {{ text-align: center; margin-bottom: 28px; }}
+            .logo-icon {{
+                width: 64px; height: 64px; border-radius: 18px;
+                background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+                display: inline-flex; align-items: center; justify-content: center;
+                font-size: 30px; margin-bottom: 12px;
+                box-shadow: 0 8px 24px rgba(29,78,216,0.3);
+            }}
+            .logo h1 {{ font-size: 22px; font-weight: 800; color: #0f172a; }}
+            .logo p  {{ font-size: 13px; color: #64748b; margin-top: 4px; }}
+            .error {{ background: #fee2e2; color: #dc2626; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }}
+            label {{ display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }}
+            input {{
+                width: 100%; padding: 12px 16px;
+                border: 1.5px solid #e2e8f0; border-radius: 10px;
+                font-size: 14px; font-family: 'Inter', sans-serif;
+                color: #0f172a; outline: none;
+                transition: border-color 0.2s;
+                margin-bottom: 16px;
+            }}
+            input:focus {{ border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }}
+            button {{
+                width: 100%; padding: 13px;
+                background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+                color: white; border: none; border-radius: 10px;
+                font-size: 15px; font-weight: 700;
+                font-family: 'Inter', sans-serif;
+                cursor: pointer; transition: all 0.2s;
+                margin-top: 4px;
+            }}
+            button:hover {{ opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(29,78,216,0.3); }}
+            .link {{ text-align: center; margin-top: 20px; font-size: 13px; color: #64748b; }}
+            .link a {{ color: #7c3aed; font-weight: 600; text-decoration: none; }}
+            .link a:hover {{ text-decoration: underline; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="logo">
+                <div class="logo-icon">🛒</div>
+                <h1>Create Account</h1>
+                <p>Join Seller AI Dashboard</p>
+            </div>
+            {'<div class="error">⚠ ' + error + '</div>' if error else ''}
+            <form method="POST">
+                <label>Username</label>
+                <input name="username" placeholder="Your name" required>
+                <label>Email</label>
+                <input name="email" type="email" placeholder="you@example.com" required>
+                <label>Password</label>
+                <input name="password" type="password" placeholder="Create a password" required>
+                <button type="submit">Create Account →</button>
+            </form>
+            <div class="link">Already have an account? <a href="/login">Sign in</a></div>
+        </div>
+    </body>
+    </html>
     """
 
 
@@ -217,6 +290,7 @@ DEV_PASSWORD = "admin123"
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error = ""
     if request.method == 'POST':
         email    = request.form['email']
         password = request.form['password']
@@ -233,14 +307,87 @@ def login():
                 db.session.commit()
             login_user(user)
             return redirect('/')
-        return "Invalid credentials"
-    return """
-    <h1>Login</h1>
-    <form method="POST">
-        <input name="email" placeholder="Email"><br><br>
-        <input name="password" type="password" placeholder="Password"><br><br>
-        <button type="submit">Login</button>
-    </form>
+        error = "Invalid email or password"
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login — Seller AI</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+            * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            body {{
+                font-family: 'Inter', sans-serif;
+                background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #db2777 100%);
+                min-height: 100vh;
+                display: flex; align-items: center; justify-content: center;
+                padding: 20px;
+            }}
+            .card {{
+                background: white; border-radius: 24px;
+                padding: 40px 36px; width: 100%; max-width: 420px;
+                box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+                animation: slideUp 0.5s cubic-bezier(.16,1,.3,1);
+            }}
+            @keyframes slideUp {{ from {{ opacity:0; transform:translateY(30px); }} to {{ opacity:1; transform:translateY(0); }} }}
+            .logo {{ text-align: center; margin-bottom: 28px; }}
+            .logo-icon {{
+                width: 64px; height: 64px; border-radius: 18px;
+                background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+                display: inline-flex; align-items: center; justify-content: center;
+                font-size: 30px; margin-bottom: 12px;
+                box-shadow: 0 8px 24px rgba(29,78,216,0.3);
+            }}
+            .logo h1 {{ font-size: 22px; font-weight: 800; color: #0f172a; }}
+            .logo p  {{ font-size: 13px; color: #64748b; margin-top: 4px; }}
+            .error {{ background: #fee2e2; color: #dc2626; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }}
+            .hint  {{ background: #eff6ff; color: #1d4ed8; padding: 10px 14px; border-radius: 10px; font-size: 12px; margin-bottom: 16px; }}
+            label {{ display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }}
+            input {{
+                width: 100%; padding: 12px 16px;
+                border: 1.5px solid #e2e8f0; border-radius: 10px;
+                font-size: 14px; font-family: 'Inter', sans-serif;
+                color: #0f172a; outline: none;
+                transition: border-color 0.2s;
+                margin-bottom: 16px;
+            }}
+            input:focus {{ border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }}
+            button {{
+                width: 100%; padding: 13px;
+                background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+                color: white; border: none; border-radius: 10px;
+                font-size: 15px; font-weight: 700;
+                font-family: 'Inter', sans-serif;
+                cursor: pointer; transition: all 0.2s;
+                margin-top: 4px;
+            }}
+            button:hover {{ opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(29,78,216,0.3); }}
+            .link {{ text-align: center; margin-top: 20px; font-size: 13px; color: #64748b; }}
+            .link a {{ color: #7c3aed; font-weight: 600; text-decoration: none; }}
+            .link a:hover {{ text-decoration: underline; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="logo">
+                <div class="logo-icon">🛒</div>
+                <h1>Welcome Back</h1>
+                <p>Sign in to Seller AI Dashboard</p>
+            </div>
+            {'<div class="error">⚠ ' + error + '</div>' if error else ''}
+            <div class="hint">💡 Demo: admin@seller.com / admin123</div>
+            <form method="POST">
+                <label>Email</label>
+                <input name="email" type="email" placeholder="you@example.com" required>
+                <label>Password</label>
+                <input name="password" type="password" placeholder="Your password" required>
+                <button type="submit">Sign In →</button>
+            </form>
+            <div class="link">Don't have an account? <a href="/register">Sign up</a></div>
+        </div>
+    </body>
+    </html>
     """
 
 

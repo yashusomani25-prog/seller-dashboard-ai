@@ -831,11 +831,88 @@ def index():
                 .modal-stats {{ grid-template-columns: 1fr; }}
                 .header h1 {{ font-size: 18px; }}
             }}
+
+            /* ===================== SPLASH SCREEN ===================== */
+            #splash {{
+                position: fixed; inset: 0;
+                background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 60%, #db2777 100%);
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                transition: opacity 0.6s ease, transform 0.6s ease;
+            }}
+            #splash.hide {{
+                opacity: 0;
+                transform: translateY(-30px);
+                pointer-events: none;
+            }}
+            .splash-logo {{
+                width: 90px; height: 90px;
+                background: rgba(255,255,255,0.15);
+                border-radius: 24px;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 44px;
+                border: 2px solid rgba(255,255,255,0.3);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                animation: logoPulse 1.2s ease-in-out infinite alternate;
+                backdrop-filter: blur(8px);
+            }}
+            .splash-name {{
+                color: white;
+                font-size: 28px;
+                font-weight: 800;
+                margin-top: 20px;
+                letter-spacing: -0.5px;
+                animation: fadeSlideUp 0.6s ease forwards;
+            }}
+            .splash-sub {{
+                color: rgba(255,255,255,0.65);
+                font-size: 14px;
+                margin-top: 8px;
+                font-weight: 400;
+                animation: fadeSlideUp 0.6s ease 0.15s forwards;
+                opacity: 0;
+            }}
+            .splash-dots {{
+                display: flex; gap: 8px; margin-top: 40px;
+            }}
+            .splash-dots span {{
+                width: 8px; height: 8px;
+                background: rgba(255,255,255,0.5);
+                border-radius: 50%;
+                animation: dotBounce 1.2s ease-in-out infinite;
+            }}
+            .splash-dots span:nth-child(2) {{ animation-delay: 0.2s; }}
+            .splash-dots span:nth-child(3) {{ animation-delay: 0.4s; }}
+
+            @keyframes logoPulse {{
+                from {{ transform: scale(1);   box-shadow: 0 8px 32px rgba(0,0,0,0.2); }}
+                to   {{ transform: scale(1.08); box-shadow: 0 16px 48px rgba(0,0,0,0.35); }}
+            }}
+            @keyframes fadeSlideUp {{
+                from {{ opacity: 0; transform: translateY(16px); }}
+                to   {{ opacity: 1; transform: translateY(0); }}
+            }}
+            @keyframes dotBounce {{
+                0%, 100% {{ transform: translateY(0);   opacity: 0.5; }}
+                50%       {{ transform: translateY(-8px); opacity: 1; }}
+            }}
         </style>
     </head>
     <body>
+        <!-- SPLASH SCREEN -->
+        <div id="splash">
+            <div class="splash-logo">🛒</div>
+            <div class="splash-name">Seller AI</div>
+            <div class="splash-sub">Automation Dashboard</div>
+            <div class="splash-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
         <div class="header">
-            <h1>🚀 Seller Automation Dashboard + AI</h1>
+            <h1>🛒 Seller AI Dashboard</h1>
             <h3>Welcome, {current_user.username}</h3>
             <form method="POST" enctype="multipart/form-data">
                 <div class="controls">
@@ -923,6 +1000,16 @@ def index():
         </div>
 
         <script>
+            // SPLASH SCREEN
+            window.addEventListener('load', function() {{
+                setTimeout(function() {{
+                    document.getElementById('splash').classList.add('hide');
+                    setTimeout(function() {{
+                        document.getElementById('splash').style.display = 'none';
+                    }}, 650);
+                }}, 1800);
+            }});
+
             function toggleDarkMode() {{ document.body.classList.toggle("dark"); }}
             function searchProducts(value) {{ window.location = "/?search=" + value; }}
             function sortProducts(value) {{ window.location = "/?sort=" + value; }}

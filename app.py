@@ -13,6 +13,18 @@ import random
 import string
 import os
 import re
+try:
+    import cloudinary
+    import cloudinary.uploader
+    cloudinary.config(
+        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+        api_key    = os.environ.get('CLOUDINARY_API_KEY', ''),
+        api_secret = os.environ.get('CLOUDINARY_API_SECRET', ''),
+        secure     = True
+    )
+    CLOUDINARY_ENABLED = bool(os.environ.get('CLOUDINARY_CLOUD_NAME'))
+except ImportError:
+    CLOUDINARY_ENABLED = False
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecretkey123'
@@ -123,11 +135,92 @@ def load_user(user_id):
 # COLUMN FINDER
 # =========================================================
 def find_column(df, keywords):
+    # Exact match first
     for col in df.columns:
         for keyword in keywords:
-            if keyword in col.lower():
+            if col.lower().strip() == keyword.lower().strip():
+                return col
+    # Partial match
+    for col in df.columns:
+        for keyword in keywords:
+            if keyword.lower() in col.lower():
                 return col
     return None
+
+
+def smart_detect_columns(df):
+    """Auto-detect columns from ANY CSV format."""
+    cols = [c.lower().strip() for c in df.columns]
+
+    title_keywords    = ['product title','product name','item name','item title','name','title','product','item','sku name']
+    desc_keywords     = ['description','details','product description','item description','desc','about','info','specification','features']
+    image_keywords    = ['image','photo','img','picture','image url','photo url','main image','image link','image1','image 1','cover']
+    price_keywords    = ['price','sale price','selling price','retail price','cost','amount','rate','mrp','unit price','regular price']
+    category_keywords = ['category','type','product type','product category','department','genre','class','group','collection','cat']
+    stock_keywords    = ['stock','quantity','qty','inventory','availability','available','units','count','in stock','stock quantity']
+
+    title_col    = find_column(df, title_keywords)
+    desc_col     = find_column(df, desc_keywords)
+    image_col    = find_column(df, image_keywords)
+    price_col    = find_column(df, price_keywords)
+    category_col = find_column(df, category_keywords)
+    stock_col    = find_column(df, stock_keywords)
+
+    # Smart fallback: if title not found, use first text-heavy column
+    if not title_col:
+        for col in df.columns:
+            sample = df[col].dropna().astype(str).head(5)
+            if sample.str.len().mean() > 5:
+                title_col = col
+                break
+        if not title_col:
+            title_col = df.columns[0]
+
+    # If price not found, look for any numeric column
+    if not price_col:
+        for col in df.columns:
+            try:
+                numeric = pd.to_numeric(df[col].astype(str).str.replace(',','').str.replace('rs','').str.replace('npr','').str.strip(), errors='coerce')
+                if numeric.notna().sum() > len(df) * 0.3:
+                    price_col = col
+                    break
+            except:
+                pass
+
+    # If image not found, look for column with http URLs
+    if not image_col:
+        for col in df.columns:
+            sample = df[col].dropna().astype(str).head(10)
+            if sample.str.startswith('http').sum() > 2:
+                image_col = col
+                break
+
+    return {
+        'title':    title_col or df.columns[0],
+        'desc':     desc_col  or title_col or df.columns[0],
+        'image':    image_col or title_col or df.columns[0],
+        'price':    price_col or title_col or df.columns[0],
+        'category': category_col or title_col or df.columns[0],
+        'stock':    stock_col
+    }
+
+
+def upload_to_cloudinary(image_url):
+    """Upload image URL to Cloudinary and return hosted URL."""
+    if not CLOUDINARY_ENABLED:
+        return image_url
+    if not image_url or 'placehold.co' in image_url:
+        return image_url
+    try:
+        result = cloudinary.uploader.upload(
+            image_url,
+            folder="seller_dashboard",
+            resource_type="image",
+            timeout=10
+        )
+        return result.get('secure_url', image_url)
+    except:
+        return image_url
 
 
 # =========================================================
@@ -470,12 +563,14 @@ def index():
 
             uploaded_df.columns = uploaded_df.columns.str.strip().str.lower()
 
-            title_col        = find_column(uploaded_df, ['product title', 'title', 'name']) or uploaded_df.columns[0]
-            desc_col         = find_column(uploaded_df, ['description', 'details']) or title_col
-            image_col        = find_column(uploaded_df, ['image', 'photo', 'img']) or title_col
-            price_col        = find_column(uploaded_df, ['price', 'sale price']) or title_col
-            category_col     = find_column(uploaded_df, ['category', 'type']) or title_col
-            stock_col_upload = find_column(uploaded_df, ['availability', 'stock', 'quantity', 'qty', 'inventory'])
+            # SMART column detection - works with ANY CSV format
+            cols = smart_detect_columns(uploaded_df)
+            title_col    = cols['title']
+            desc_col     = cols['desc']
+            image_col    = cols['image']
+            price_col    = cols['price']
+            category_col = cols['category']
+            stock_col_upload = cols['stock']
 
             # DELETE all old products for this user before loading fresh CSV
             Product.query.filter_by(user_id=current_user.id).delete()
@@ -484,18 +579,34 @@ def index():
             # INSERT all rows including duplicates using bulk
             bulk = []
             for _, row in uploaded_df.iterrows():
-                title       = str(row.get(title_col, 'Untitled')).replace("nan", "").strip() or 'Untitled'
-                description = str(row.get(desc_col, '')).replace("nan", "").strip()
-                category    = str(row.get(category_col, 'General')).replace("nan", "").strip() or 'General'
-                image       = fix_google_drive_link(row.get(image_col, ''))
+                title = str(row.get(title_col, '')).strip()
+                title = re.sub(r'(?i)^nan$', '', title).strip() or 'Untitled'
+
+                description = str(row.get(desc_col, '')).strip()
+                description = re.sub(r'(?i)^nan$', '', description).strip()
+
+                category = str(row.get(category_col, '')).strip()
+                category = re.sub(r'(?i)^nan$', '', category).strip() or 'General'
+
+                image = fix_google_drive_link(row.get(image_col, ''))
+
+                # Smart price extraction - handles Rs., NPR, commas etc
                 try:
-                    price = float(str(row.get(price_col, 0)).replace(",", "").strip())
+                    raw_price = str(row.get(price_col, '0'))
+                    raw_price = re.sub(r'[^\d.]', '', raw_price.replace(',', ''))
+                    price = float(raw_price) if raw_price else 0
                 except:
                     price = 0
+
                 try:
                     stock = int(float(str(row.get(stock_col_upload, 0)).replace(',', '').strip())) if stock_col_upload else 0
                 except:
                     stock = 0
+
+                # Upload image to Cloudinary if enabled
+                if CLOUDINARY_ENABLED and image and 'placehold.co' not in image:
+                    image = upload_to_cloudinary(image)
+
                 bulk.append(Product(
                     user_id=current_user.id,
                     title=title, description=description,
@@ -518,30 +629,27 @@ def index():
             if auto_csv != "from_db":
                 auto_df = pd.read_csv(auto_csv)
             auto_df.columns = auto_df.columns.str.strip().str.lower()
-            _title_col    = find_column(auto_df, ['product title', 'title', 'name']) or auto_df.columns[0]
-            _desc_col     = find_column(auto_df, ['description', 'details']) or _title_col
-            _image_col    = find_column(auto_df, ['image', 'photo', 'img']) or _title_col
-            _price_col    = find_column(auto_df, ['price', 'sale price']) or _title_col
-            _category_col = find_column(auto_df, ['category', 'type']) or _title_col
-            _stock_col    = find_column(auto_df, ['availability', 'stock', 'quantity', 'qty', 'inventory'])
+            _cols = smart_detect_columns(auto_df)
+            bulk2 = []
             for _, row in auto_df.iterrows():
-                title       = str(row.get(_title_col, 'Untitled')).replace("nan", "").strip() or 'Untitled'
-                description = str(row.get(_desc_col, '')).replace("nan", "").strip()
-                category    = str(row.get(_category_col, 'General')).replace("nan", "").strip() or 'General'
-                image       = fix_google_drive_link(row.get(_image_col, ''))
+                title = re.sub(r'(?i)nan', '', str(row.get(_cols['title'], ''))).strip() or 'Untitled'
+                description = re.sub(r'(?i)nan', '', str(row.get(_cols['desc'], ''))).strip()
+                category = re.sub(r'(?i)nan', '', str(row.get(_cols['category'], ''))).strip() or 'General'
+                image = fix_google_drive_link(row.get(_cols['image'], ''))
                 try:
-                    price = float(str(row.get(_price_col, 0)).replace(",", "").strip())
+                    raw_price = re.sub(r'[^\d.]', '', str(row.get(_cols['price'], '0')).replace(',', ''))
+                    price = float(raw_price) if raw_price else 0
                 except:
                     price = 0
                 try:
-                    stock = int(float(str(row.get(_stock_col, 0)).replace(',', '').strip())) if _stock_col else 0
+                    stock = int(float(str(row.get(_cols['stock'], 0)).replace(',', '').strip())) if _cols['stock'] else 0
                 except:
                     stock = 0
-                if not Product.query.filter_by(title=title, user_id=current_user.id).first():
-                    db.session.add(Product(
-                        user_id=current_user.id, title=title, description=description,
-                        category=category, image=image, price=price, stock=stock
-                    ))
+                bulk2.append(Product(
+                    user_id=current_user.id, title=title, description=description,
+                    category=category, image=image, price=price, stock=stock
+                ))
+            db.session.bulk_save_objects(bulk2)
             db.session.commit()
 
     products = Product.query.filter_by(user_id=current_user.id).all()

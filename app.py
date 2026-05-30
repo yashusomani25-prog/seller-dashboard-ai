@@ -1052,12 +1052,14 @@ def index():
                     <a href="/export/tiktok"><button class="blue" type="button">Export TikTok</button></a>
                     <a href="/export/instagram"><button class="pink" type="button">Export Instagram</button></a>
                     <a href="/logout"><button class="orange" type="button">Logout</button></a>
-                    <form method="POST" action="/clear-products" style="display:inline;" onsubmit="return confirm('Delete ALL your products? This cannot be undone!');">
-                        <button class="pink" type="submit">🗑️ Clear All Products</button>
-                    </form>
+
                 </div>
             </form>
         </div>
+
+        <form method="POST" action="/clear-products" id="clearForm">
+            <button class="pink" type="button" onclick="confirmClear()" style="margin:10px 32px;padding:11px 20px;border-radius:10px;font-weight:600;font-size:13px;">🗑️ Delete Products</button>
+        </form>
 
         <div class="stats">
             <div class="stat-card"><div class="stat-number">{total_products}</div><p>Total Products</p></div>
@@ -1114,6 +1116,11 @@ def index():
         </div>
 
         <script>
+            function confirmClear() {{
+                if (confirm('Delete ALL your products? This cannot be undone!')) {{
+                    document.getElementById('clearForm').submit();
+                }}
+            }}
             function toggleDarkMode() {{ document.body.classList.toggle("dark"); }}
             function searchProducts(value) {{ window.location = "/?search=" + value; }}
             function sortProducts(value) {{ window.location = "/?sort=" + value; }}
@@ -1316,7 +1323,7 @@ def export_platform(platform):
 @app.route('/clear-products', methods=['POST'])
 @login_required
 def clear_products():
-    Product.query.filter_by(user_id=current_user.id).delete()
+    Product.query.filter_by(user_id=current_user.id).delete(synchronize_session=False)
     db.session.commit()
     return redirect('/')
 

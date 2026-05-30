@@ -149,13 +149,17 @@ def smart_detect_columns(df):
     # ── TITLE ──────────────────────────────────────────────
     title_keywords = [
         'product name(english)', 'product name (english)',
+        'name(english)', 'name (english)',
         'product title', 'product_name', 'item name',
-        'title', 'name', 'product name', 'item title',
-        'listing title', 'ad title', '상품명', 'ชื่อสินค้า'
+        'title', 'product name', 'item title',
+        'listing title', 'ad title',
     ]
     title_col = None
     for kw in title_keywords:
         for col, col_lower in cols.items():
+            # Skip columns with 'id', 'nepali', 'look' in them
+            if any(skip in col_lower for skip in ['product id', ' id', 'nepali', 'look function']):
+                continue
             if kw in col_lower:
                 title_col = col
                 break
@@ -181,11 +185,10 @@ def smart_detect_columns(df):
     # ── IMAGE ──────────────────────────────────────────────
     image_keywords = [
         'product images1', 'product images 1',
-        'image src', 'main image', 'primary image',
+        '*product images1', 'image src', 'main image',
         'image1', 'image 1', 'photo1', 'photo 1',
         'image', 'photo', 'img', 'picture',
         'thumbnail', 'cover image', 'featured image',
-        'white background image'
     ]
     image_col = None
     for kw in image_keywords:
@@ -206,6 +209,9 @@ def smart_detect_columns(df):
     price_col = None
     for kw in price_keywords:
         for col, col_lower in cols.items():
+            # Skip ID columns
+            if any(skip in col_lower for skip in ['product id', ' id']):
+                continue
             if kw in col_lower:
                 price_col = col
                 break

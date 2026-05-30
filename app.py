@@ -135,11 +135,151 @@ app.jinja_env.globals.update(process_image_url=process_image_url)
 # COLUMN FINDER
 # =========================================================
 def find_column(df, keywords):
+    # Exact match first
     for col in df.columns:
         for keyword in keywords:
             if keyword in col.lower():
                 return col
     return None
+
+
+def smart_detect_columns(df):
+    cols = {c: c.lower() for c in df.columns}
+
+    # ── TITLE ──────────────────────────────────────────────
+    title_keywords = [
+        'product name(english)', 'product name (english)',
+        'product title', 'product_name', 'item name',
+        'title', 'name', 'product name', 'item title',
+        'listing title', 'ad title', '상품명', 'ชื่อสินค้า'
+    ]
+    title_col = None
+    for kw in title_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                title_col = col
+                break
+        if title_col:
+            break
+
+    # ── DESCRIPTION ────────────────────────────────────────
+    desc_keywords = [
+        'main description', 'product description',
+        'description', 'details', 'detail', 'about',
+        'highlights', 'overview', 'body', 'content',
+        'long description', 'full description'
+    ]
+    desc_col = None
+    for kw in desc_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                desc_col = col
+                break
+        if desc_col:
+            break
+
+    # ── IMAGE ──────────────────────────────────────────────
+    image_keywords = [
+        'product images1', 'product images 1',
+        'image src', 'main image', 'primary image',
+        'image1', 'image 1', 'photo1', 'photo 1',
+        'image', 'photo', 'img', 'picture',
+        'thumbnail', 'cover image', 'featured image',
+        'white background image'
+    ]
+    image_col = None
+    for kw in image_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                image_col = col
+                break
+        if image_col:
+            break
+
+    # ── PRICE ──────────────────────────────────────────────
+    price_keywords = [
+        '*sale price', 'sale price', '*price',
+        'special price', 'selling price', 'retail price',
+        'price', 'amount', 'cost', 'mrp',
+        'unit price', 'list price', 'offer price'
+    ]
+    price_col = None
+    for kw in price_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                price_col = col
+                break
+        if price_col:
+            break
+
+    # ── CATEGORY ───────────────────────────────────────────
+    category_keywords = [
+        'google_product_category', 'product category',
+        'category name', 'category', 'type', 'genre',
+        'department', 'section', 'collection'
+    ]
+    category_col = None
+    for kw in category_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                # Skip warranty-related columns
+                if 'warranty' not in col_lower:
+                    category_col = col
+                    break
+        if category_col:
+            break
+
+    # ── STOCK ──────────────────────────────────────────────
+    stock_keywords = [
+        'availability', 'stock quantity', 'quantity',
+        'stock', 'qty', 'inventory', 'units available',
+        'available quantity', 'stock level'
+    ]
+    stock_col = None
+    for kw in stock_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                stock_col = col
+                break
+        if stock_col:
+            break
+
+    # ── LINK ───────────────────────────────────────────────
+    link_keywords = [
+        'product url', 'product link', 'item url',
+        'url', 'link', 'product_url', 'listing url',
+        'page url', 'shop url'
+    ]
+    link_col = None
+    for kw in link_keywords:
+        for col, col_lower in cols.items():
+            if kw in col_lower:
+                link_col = col
+                break
+        if link_col:
+            break
+
+    # ── FALLBACK to first column for title ─────────────────
+    first_col = df.columns[0]
+    return {
+        'title':    title_col    or first_col,
+        'desc':     desc_col     or title_col or first_col,
+        'image':    image_col    or title_col or first_col,
+        'price':    price_col,
+        'category': category_col,
+        'stock':    stock_col,
+        'link':     link_col,
+    }
+
+
+def detect_duplicate_images(df, image_col):
+    if not image_col:
+        return set()
+    image_counts = df[image_col].astype(str).value_counts()
+    duplicates   = set(image_counts[image_counts > 1].index)
+    duplicates.discard('nan')
+    duplicates.discard('')
+    return duplicates
 
 
 # =========================================================
@@ -567,13 +707,16 @@ def index():
             current_user.catalog_data = uploaded_df.to_csv(index=False)
             db.session.commit()
 
-            uploaded_df.columns = uploaded_df.columns.str.strip().str.lower()
 
-            title_col    = find_column(uploaded_df, ['product title', 'title', 'name']) or uploaded_df.columns[0]
-            desc_col     = find_column(uploaded_df, ['description', 'details']) or title_col
-            image_col    = find_column(uploaded_df, ['image', 'photo', 'img']) or title_col
-            price_col    = find_column(uploaded_df, ['price', 'sale price']) or title_col
-            category_col = find_column(uploaded_df, ['category', 'type']) or title_col
+            uploaded_df.columns = uploaded_df.columns.str.strip()
+            detected         = smart_detect_columns(uploaded_df)
+            title_col        = detected['title']
+            desc_col         = detected['desc']
+            image_col        = detected['image']
+            price_col        = detected['price']
+            category_col     = detected['category']
+            stock_col_upload = detected['stock']
+            duplicate_images = detect_duplicate_images(uploaded_df, image_col)
 
             # SAVE PRODUCTS INTO DATABASE
             stock_col_upload = find_column(uploaded_df, ['availability', 'stock', 'quantity', 'qty', 'inventory'])
@@ -591,9 +734,7 @@ def index():
                 except:
                     stock = 0
 
-                existing = Product.query.filter_by(title=title, user_id=current_user.id).first()
-                if not existing:
-                    db.session.add(Product(
+                db.session.add(Product(
                         user_id=current_user.id,
                         title=title, description=description,
                         category=category, image=image,
@@ -614,13 +755,14 @@ def index():
         if auto_csv:
             if auto_csv != "from_db":
                 auto_df = pd.read_csv(auto_csv)
-            auto_df.columns = auto_df.columns.str.strip().str.lower()
-            _title_col    = find_column(auto_df, ['product title', 'title', 'name']) or auto_df.columns[0]
-            _desc_col     = find_column(auto_df, ['description', 'details']) or _title_col
-            _image_col    = find_column(auto_df, ['image', 'photo', 'img']) or _title_col
-            _price_col    = find_column(auto_df, ['price', 'sale price']) or _title_col
-            _category_col = find_column(auto_df, ['category', 'type']) or _title_col
-            _stock_col    = find_column(auto_df, ['availability', 'stock', 'quantity', 'qty', 'inventory'])
+            auto_df.columns = auto_df.columns.str.strip()
+            _detected     = smart_detect_columns(auto_df)
+            _title_col    = _detected['title']
+            _desc_col     = _detected['desc']
+            _image_col    = _detected['image']
+            _price_col    = _detected['price']
+            _category_col = _detected['category']
+            _stock_col    = _detected['stock']
             for _, row in auto_df.iterrows():
                 title       = str(row.get(_title_col, 'Untitled')).replace("nan", "").strip() or 'Untitled'
                 description = str(row.get(_desc_col, '')).replace("nan", "").strip()
@@ -904,6 +1046,9 @@ def index():
                     <a href="/export/tiktok"><button class="blue" type="button">Export TikTok</button></a>
                     <a href="/export/instagram"><button class="pink" type="button">Export Instagram</button></a>
                     <a href="/logout"><button class="orange" type="button">Logout</button></a>
+                    <form method="POST" action="/clear-products" style="display:inline;" onsubmit="return confirm('Delete ALL your products? This cannot be undone!');">
+                        <button class="pink" type="submit">🗑️ Clear All Products</button>
+                    </form>
                 </div>
             </form>
         </div>
@@ -1160,6 +1305,14 @@ def export_platform(platform):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename={platform}_export.csv"}
     )
+
+
+@app.route('/clear-products', methods=['POST'])
+@login_required
+def clear_products():
+    Product.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+    return redirect('/')
 
 
 @app.route('/health')

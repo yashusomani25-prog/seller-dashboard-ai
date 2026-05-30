@@ -1,10 +1,9 @@
-flask
+flaskflask
 flask-sqlalchemy
 flask-login
+flask-mail
 werkzeug
 pandas
 openpyxl
-gunicorn
-cloudinary
-requests
 psycopg2-binary
+gunicorn

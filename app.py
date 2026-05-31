@@ -1057,9 +1057,7 @@ def index():
             </form>
         </div>
 
-        <form method="POST" action="/clear-products" id="clearForm" style="margin:10px 32px;">
-            <button class="pink" type="submit" onclick="return confirm('Delete ALL products? This cannot be undone!')" style="padding:11px 20px;border-radius:10px;font-weight:600;font-size:13px;">🗑️ Delete Products</button>
-        </form>
+        <button class="pink" onclick="deleteAllProducts()" style="margin:10px 32px;padding:11px 20px;border-radius:10px;font-weight:600;font-size:13px;">🗑️ Delete Products</button>
 
         <div class="stats">
             <div class="stat-card"><div class="stat-number">{total_products}</div><p>Total Products</p></div>
@@ -1116,9 +1114,20 @@ def index():
         </div>
 
         <script>
-            function confirmClear() {{
-                if (confirm('Delete ALL your products? This cannot be undone!')) {{
-                    document.getElementById('clearForm').submit();
+            async function deleteAllProducts() {{
+                if (!confirm('Delete ALL products? This cannot be undone!')) return;
+                try {{
+                    const res = await fetch('/clear-products', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}}
+                    }});
+                    if (res.ok || res.redirected) {{
+                        window.location.href = '/';
+                    }} else {{
+                        alert('Error deleting products');
+                    }}
+                }} catch(e) {{
+                    window.location.href = '/';
                 }}
             }}
             function toggleDarkMode() {{ document.body.classList.toggle("dark"); }}

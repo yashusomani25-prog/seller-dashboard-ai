@@ -975,7 +975,7 @@ def index():
             .stat-card {{ background: white; padding: 28px; border-radius: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); transition: 0.25s; }}
             .stat-card:hover {{ transform: translateY(-4px); }}
             .stat-number {{ font-size: 35px; font-weight: bold; color: #2563eb; }}
-            .products {{ display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 25px; padding: 20px; }}
+            .products {{ display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 22px; padding: 8px 32px 40px; justify-items: stretch; }}
             .card {{ background: white; border-radius: 22px; overflow: hidden; box-shadow: 0 8px 25px rgba(0,0,0,0.08); position: relative; transition: 0.3s ease; border: 1px solid #f0f0f0; }}
             .card:hover {{ transform: translateY(-6px); box-shadow: 0 12px 24px rgba(0,0,0,0.15); }}
             .category-badge {{ position: absolute; top: 14px; left: 14px; background: #2563eb; color: white; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: bold; z-index: 5; }}
@@ -1057,8 +1057,8 @@ def index():
             </form>
         </div>
 
-        <form method="POST" action="/clear-products" id="clearForm">
-            <button class="pink" type="button" onclick="confirmClear()" style="margin:10px 32px;padding:11px 20px;border-radius:10px;font-weight:600;font-size:13px;">🗑️ Delete Products</button>
+        <form method="POST" action="/clear-products" id="clearForm" style="margin:10px 32px;">
+            <button class="pink" type="submit" onclick="return confirm('Delete ALL products? This cannot be undone!')" style="padding:11px 20px;border-radius:10px;font-weight:600;font-size:13px;">🗑️ Delete Products</button>
         </form>
 
         <div class="stats">
